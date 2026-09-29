@@ -104,6 +104,18 @@ export function FeedbackSidebar({
             </span>
           </a>
         </div>
+
+        {/* XBert: AGPL-3.0 section 13 source offer for this modified build. */}
+        <div className="flex justify-center mt-1">
+          <a
+            href="https://github.com/ThirstyStudios/quackback/tree/xbert/v0.13.2"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors"
+          >
+            Source code
+          </a>
+        </div>
       </div>
     </aside>
   )

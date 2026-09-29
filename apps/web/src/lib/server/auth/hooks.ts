@@ -1010,6 +1010,11 @@ export async function handleNewDeviceNotification(
     ReturnType<typeof import('@/lib/server/domains/settings/settings.service').getTenantSettings>
   >
 ): Promise<void> {
+  // XBert: sessions minted by the one-time-token hand-off (the widget "Go to portal" link and
+  // XBert's silent sign-in from app.xbert.io) are not someone entering credentials on a new
+  // device, so they don't get the "new sign-in" alert. Password, magic-link and OAuth still do.
+  if (ctx.path === '/one-time-token/verify') return
+
   const userId = ctx.context?.newSession?.user?.id
   const email = ctx.context?.newSession?.user?.email
   const token = ctx.context?.newSession?.session?.token
