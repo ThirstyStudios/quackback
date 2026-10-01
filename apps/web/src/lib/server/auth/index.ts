@@ -148,7 +148,13 @@ async function createAuth() {
     buildLoginHintParams,
   })
   genericOAuthConfigs.push(...oidcConfigs)
-  for (const c of oidcConfigs) trustedProviders.push(c.providerId)
+  // XBert build: customer OIDC providers stay untrusted, so linking to an
+  // existing account needs the IdP's email_verified (see customer-oidc.ts).
+  const { getCustomerOidcProviderIds } = await import('./customer-oidc')
+  const customerOidcIds = getCustomerOidcProviderIds()
+  for (const c of oidcConfigs) {
+    if (!customerOidcIds.has(c.providerId)) trustedProviders.push(c.providerId)
+  }
 
   // Layer A registration filter: an OAuth provider is registered on
   // the Better-Auth instance only if creds exist AND `authConfig.oauth`

@@ -469,3 +469,53 @@ describe('evaluatePortalAccess — segment branch edge cases', () => {
     expect(result).toEqual({ granted: true, reason: 'domain' })
   })
 })
+
+describe('evaluatePortalAccess — XBert customer SSO branch', () => {
+  const base = {
+    visibility: 'private' as const,
+    role: 'user' as const,
+    userEmail: 'customer@practice.com.au',
+    allowedDomains: [],
+  }
+
+  it('grants a visitor who signed in with a customer login, even with an unverified email', () => {
+    const result = evaluatePortalAccess({
+      ...base,
+      isAuthenticated: true,
+      emailVerified: false,
+      hasCustomerSsoAccount: true,
+    })
+    expect(result).toEqual({ granted: true, reason: 'sso' })
+  })
+
+  it('does NOT grant when unauthenticated, even if hasCustomerSsoAccount=true', () => {
+    const result = evaluatePortalAccess({
+      ...base,
+      isAuthenticated: false,
+      emailVerified: false,
+      hasCustomerSsoAccount: true,
+    })
+    expect(result).toEqual({ granted: false, reason: 'unauthenticated' })
+  })
+
+  it('denies a signed-in visitor without a customer login', () => {
+    const result = evaluatePortalAccess({
+      ...base,
+      isAuthenticated: true,
+      emailVerified: true,
+      hasCustomerSsoAccount: false,
+    })
+    expect(result).toEqual({ granted: false, reason: 'unauthorized' })
+  })
+
+  it('prefers the team grant for a team member who also has a customer login', () => {
+    const result = evaluatePortalAccess({
+      ...base,
+      role: 'admin',
+      isAuthenticated: true,
+      emailVerified: true,
+      hasCustomerSsoAccount: true,
+    })
+    expect(result).toEqual({ granted: true, reason: 'team' })
+  })
+})

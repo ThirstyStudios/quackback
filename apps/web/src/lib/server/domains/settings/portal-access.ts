@@ -94,11 +94,20 @@ export interface PortalAccessContext {
    * email-based segment.
    */
   isInAllowedSegment?: boolean
+  /**
+   * XBert build: true when the authenticated visitor has an account from a
+   * customer OIDC provider (`XBERT_CUSTOMER_OIDC_PROVIDERS`), i.e. they
+   * signed in with their XBert login. Defaults to `false`.
+   */
+  hasCustomerSsoAccount?: boolean
 }
 
 /** Discriminated union — narrows cleanly in if/switch. */
 export type PortalAccessResult =
-  | { granted: true; reason: 'public' | 'team' | 'domain' | 'invite' | 'widget' | 'segment' }
+  | {
+      granted: true
+      reason: 'public' | 'team' | 'domain' | 'invite' | 'widget' | 'segment' | 'sso'
+    }
   | { granted: false; reason: 'unauthenticated' | 'unauthorized' }
 
 // =============================================================================
@@ -184,6 +193,14 @@ export function evaluatePortalAccess(ctx: PortalAccessContext): PortalAccessResu
   //    invite branches above.
   if (ctx.isAuthenticated && ctx.emailVerified && (ctx.isInAllowedSegment ?? false)) {
     return { granted: true, reason: 'segment' }
+  }
+
+  // 5b. XBert build: signed in with a customer login (XBERT_CUSTOMER_OIDC_PROVIDERS).
+  //     The account row only exists once the IdP has authenticated the
+  //     visitor, and such providers are untrusted for implicit linking, so an
+  //     unproven email can't attach this grant to someone else's account.
+  if (ctx.isAuthenticated && (ctx.hasCustomerSsoAccount ?? false)) {
+    return { granted: true, reason: 'sso' }
   }
 
   // 6. Widget sign-in grant.

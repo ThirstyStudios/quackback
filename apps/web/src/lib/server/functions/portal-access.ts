@@ -29,7 +29,7 @@ const log = logger.child({ component: 'portal-access' })
 export type PortalAccessDecision =
   | {
       granted: true
-      reason: 'public' | 'team' | 'domain' | 'invite' | 'widget' | 'segment'
+      reason: 'public' | 'team' | 'domain' | 'invite' | 'widget' | 'segment' | 'sso'
     }
   | {
       granted: false
@@ -155,6 +155,27 @@ export const resolvePortalAccessForRequest = createServerOnlyFn(
       }
     }
 
+    // XBert build: has the visitor signed in with a customer login?
+    // Fail CLOSED on DB error: a lookup failure never grants access.
+    let hasCustomerSsoAccount = false
+    const { getCustomerOidcProviderIds } = await import('@/lib/server/auth/customer-oidc')
+    const customerOidcIds = [...getCustomerOidcProviderIds()]
+    if (isAuthenticated && session?.user && customerOidcIds.length > 0) {
+      const { account, and: dbAnd, inArray } = await import('@/lib/server/db')
+      try {
+        const accountRow = await db.query.account.findFirst({
+          where: dbAnd(
+            eq(account.userId, session.user.id as UserId),
+            inArray(account.providerId, customerOidcIds)
+          ),
+          columns: { id: true },
+        })
+        hasCustomerSsoAccount = !!accountRow
+      } catch {
+        hasCustomerSsoAccount = false
+      }
+    }
+
     // Read the full portal config + widget config server-side — never leaves this function.
     // Two distinct failure modes:
     //   - NotFoundError (no settings row): fresh un-onboarded install, fail
@@ -203,6 +224,7 @@ export const resolvePortalAccessForRequest = createServerOnlyFn(
         hasViaWidgetMarker,
         identifyVerificationEnabled,
         isInAllowedSegment,
+        hasCustomerSsoAccount,
       })
     } catch (err) {
       const { NotFoundError } = await import('@/lib/shared/errors')
